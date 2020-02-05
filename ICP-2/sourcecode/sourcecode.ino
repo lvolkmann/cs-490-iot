@@ -1,33 +1,19 @@
 #include <SoftwareSerial.h>
-#define DEBUG true
-//SoftwareSerial esp8266(9,10); 
+#include <HttpClient.h>
+#include <Bridge.h>
 #include <LiquidCrystal.h>
-#include <stdlib.h>
-//LiquidCrystal lcd(12,11,5,4,3,2); s
-//const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
-//LiquidCrystal lcd(rs, en, d4, d5, d6, d7); //new LCD config
-
-
-//Alt wifi connection
-#include <ESP8266_Lib.h>
-#define ESP8266_BAUD 115200
-char ssid[] = "wireless_fidelity_24";
-char pass[] = "VolkmannRankin";
-
-SoftwareSerial esp8266(9, 10); // RX, TX
-
-ESP8266 wifi(&esp8266);
-
 #include <LiquidCrystal_I2C.h>
+#include <stdlib.h>
+
+#define DEBUG true
+
 
 // Set the LCD address to 0x27 for a 16 chars and 2 line display
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-#define SSID "wireless_fidelity_24"     // "SSID-WiFiname" 
-#define PASS "VolkmannRankin"       // "password"
-#define IP "184.106.153.149"// thingspeak.com ip
-//String msg = "GET /update?key=07DOCRGF77KFH05E"; //change it with your api key like "GET /update?key=Your Api Key"
-String msg = "GET https://api.thingspeak.com/update?api_key=07DOCRGF77KFH05E&field1="; //field specific
+HttpClient client; // For talking with the thingspeak api
+
+String msg = "http://api.thingspeak.com/update?key=07DOCRGF77KFH05E&field1="; //field specific
 
 //Variables
 float temp;
@@ -39,15 +25,23 @@ int blinkPin = 13;                // pin to blink led at each beat
 int fadePin = 5;
 int fadeRate = 0;
 
+int redIndicatorPin = 4;
+int greenIndicatorPin = 5;
+int lcdSwitchPin = 6;
+bool lcdOn = true;
+
+int lcdSwitch;
+
+
 // Volatile Variables, used in the interrupt service routine!
 volatile int BPM;                   // int that holds raw Analog in 0. updated every 2mS
 volatile int Signal;                // holds the incoming raw data
-volatile int IBI = 600;             // int that holds the time interval between beats! Must be seeded! 
-volatile boolean Pulse = false;     // "True" when heartbeat is detected. "False" when not a "live beat". 
+volatile int IBI = 600;             // int that holds the time interval between beats! Must be seeded!
+volatile boolean Pulse = false;     // "True" when heartbeat is detected. "False" when not a "live beat".
 volatile boolean QS = false;        // becomes true when Arduino finds a beat.
 
 // Regards Serial OutPut  -- Set This Up to your needs
-static boolean serialVisual = true;   // Set to 'false' by Default.  Re-set to 'true' to see Arduino Serial Monitor ASCII Visual Pulse 
+static boolean serialVisual = true;   // Set to 'false' by Default.  Re-set to 'true' to see Arduino Serial Monitor ASCII Visual Pulse
 volatile int rate[10];                    // array to hold last ten IBI values
 volatile unsigned long sampleCounter = 0;          // used to determine pulse timing
 volatile unsigned long lastBeatTime = 0;           // used to find IBI
@@ -60,133 +54,116 @@ volatile boolean secondBeat = false;      // used to seed rate array so we start
 
 void setup()
 {
-//  lcd.begin(16, 2);
+
+  pinMode(redIndicatorPin, OUTPUT);
+  pinMode(greenIndicatorPin, OUTPUT);
+  pinMode(lcdSwitchPin, INPUT);
+
+  
+  
+  
   lcd.begin();
   lcd.setBacklight((uint8_t)1);
-  lcd.print("circuitdigest.com");
+  lcd.print("Hello!");
   
   delay(100);
   lcd.setCursor(0,1);
   lcd.print("Connecting...");
-//  Serial.begin(9600); //or use default 115200.
-  Serial.begin(9600); //or use default 115200.
-
-//  esp8266.begin(9600);
-  esp8266.begin(115200);
-  Serial.println("AT");
-  esp8266.println("AT");
-  delay(5000);
-
-  if(connectWiFi()){
-  Serial.println("CONNECTED TO WIFI");
-  }
-  else{
-  Serial.println("FAILED TO CONNECT");
-  }
   
-//  if(esp8266.find("OK")){
-//    if(connectWiFi()){
-//      Serial.println("CONNECTED TO WIFI");
-//    }
-//    else{
-//      Serial.println("FAILED TO CONNECT");
-//    }
-//  }
-  interruptSetup(); 
+  // Needed for internet connection
+  Bridge.begin();
+  
+  
+  Serial.begin(9600); //or use default 115200.
+  
+  delay(1000);
+
+  interruptSetup();
 }
 
 void loop(){
-  lcd.clear();
-  start: //label 
-  error=0;
-  lcd.setCursor(0, 0);
-  lcd.print("BPM = ");
-  lcd.print(BPM);
-  delay (100);
-  lcd.setCursor(0, 1); // set the cursor to column 0, line 2
-  delay(1000);
-  
+  lcdSwitch = digitalRead(lcdSwitchPin);
+  if(lcdSwitch == HIGH){
+    lcdOn = !lcdOn;
+    Serial.println("switch hit!");
+  }
+  if(lcdOn) {
+    lcd.backlight();
+    lcd.clear();
+    start: //label
+    error=0;
+    lcd.setCursor(0, 0);
+    lcd.print("BPM = ");
+    lcd.print(BPM);
+    delay (100);
+    lcd.setCursor(0, 1); // set the cursor to column 0, line 2
+    delay(100);
+  }
+  else{
+    lcd.noBacklight();
+  }
+
+
+  //PART III
+  if(BPM < 100){
+    digitalWrite(greenIndicatorPin, HIGH);
+    digitalWrite(redIndicatorPin, LOW);
+  }
+  else if(BPM > 170){
+    digitalWrite(greenIndicatorPin, LOW);
+    digitalWrite(redIndicatorPin, HIGH);
+  }
+  else {
+    digitalWrite(greenIndicatorPin, LOW);
+    digitalWrite(redIndicatorPin, LOW);
+  }
+
+  //ICP-2 BONUS
+  if(BPM > 240 || BPM < 50){
+    BPM = 0;
+  }
+ 
   updatebeat();
-  //Resend if transmission is not completed 
+
+  //Resend if transmission is not completed
   if (error==1){
     goto start; //go to label "start"
   }
-  
-  delay(1000); 
+ 
+  delay(1000);
 }
 
 void updatebeat(){
-  String cmd = "AT+CIPSTART=\"TCP\",\"";
-  cmd += IP;
-  cmd += "\",80";
-  Serial.println(cmd);
-  esp8266.println(cmd);
-  delay(2000);
-  if(esp8266.find("Error")){
-    Serial.println("ESP8266 Error");
-    return;
-  }
-  cmd = msg ;
-//  cmd += "&field1=";   
-  cmd += BPM;
-  cmd += "\r\n";
-  Serial.print("AT+CIPSEND=");
-  esp8266.print("AT+CIPSEND=");
-  Serial.println(cmd.length());
-  esp8266.println(cmd.length());
-//  Serial.println(esp8266);
-  delay(1000);
-//  if(esp8266.find(">")){
-    if(true){
-    Serial.print(cmd);
-    esp8266.print(cmd);
-  }
-  else{
-   Serial.println("AT+CIPCLOSE");
-   esp8266.println("AT+CIPCLOSE");
-    //Resend...
-    error=1;
-  }
+
+//  Serial.println("ENTER updatebeat()");
+  String request = "";
+  request += msg;
+  request += String(BPM);
+  client.get(request);
+
+
 }
 
-boolean connectWiFi(){
-  Serial.println("AT+CWMODE=1");
-  esp8266.println("AT+CWMODE=1");
-  delay(2000);
-  String cmd="AT+CWJAP=\"";
-  cmd+=SSID;
-  cmd+="\",\"";
-  cmd+=PASS;
-  cmd+="\"";
-  Serial.println(cmd);
-  esp8266.println(cmd);
-  delay(5000);
-  if(esp8266.find("OK")){
-    Serial.println("OK");
-    return true;    
-  }else{
-    return false;
-  }
+void interruptSetup(){
+TCCR1A = 0x00; // DISABLE PWM ON DIGITAL PINS 3 AND 11, AND GO INTO CTC MODE
+TCCR1B = 0x0C; // DON'T FORCE COMPARE, 256 PRESCALER
+OCR1A = 0x7C; // SET THE TOP OF THE COUNT TO 124 FOR 500Hz SAMPLE RATE
+TIMSK1 = 0x02; // ENABLE INTERRUPT ON MATCH BETWEEN TIMER2 AND OCR2A
+
+sei(); // MAKE SURE GLOBAL INTERRUPTS ARE ENABLED
 }
 
-void interruptSetup(){     
-  TCCR2A = 0x02;     // DISABLE PWM ON DIGITAL PINS 3 AND 11, AND GO INTO CTC MODE
-  TCCR2B = 0x06;     // DON'T FORCE COMPARE, 256 PRESCALER 
-  OCR2A = 0X7C;      // SET THE TOP OF THE COUNT TO 124 FOR 500Hz SAMPLE RATE
-  TIMSK2 = 0x02;     // ENABLE INTERRUPT ON MATCH BETWEEN TIMER2 AND OCR2A
-  sei();             // MAKE SURE GLOBAL INTERRUPTS ARE ENABLED      
-} 
-
-ISR(TIMER2_COMPA_vect){                       // triggered when Timer2 counts to 124
+ISR(TIMER1_COMPA_vect){                    // triggered when Timer2 counts to 124
+//  Serial.println("ENTER ISR");
   cli();                                      // disable interrupts while we do this
-  Signal = analogRead(pulsePin);              // read the Pulse Sensor 
+  Signal = analogRead(pulsePin);              // read the Pulse Sensor
   sampleCounter += 2;                         // keep track of the time in mS
   int N = sampleCounter - lastBeatTime;       // monitor the time since the last beat to avoid noise
 
     //  find the peak and trough of the pulse wave
   if(Signal < thresh && N > (IBI/5)*3){      // avoid dichrotic noise by waiting 3/5 of last IBI
     if (Signal < T){                         // T is the trough
-      T = Signal;                            // keep track of lowest point in pulse wave 
+      T = Signal;                            // keep track of lowest point in pulse wave
     }
   }
 
@@ -197,7 +174,8 @@ ISR(TIMER2_COMPA_vect){                       // triggered when Timer2 counts to
   //  NOW IT'S TIME TO LOOK FOR THE HEART BEAT
   // signal surges up in value every time there is a pulse
   if (N > 250){                                   // avoid high frequency noise
-    if ( (Signal > thresh) && (Pulse == false) && (N > (IBI/5)*3) ){        
+    if ( (Signal > thresh) && (Pulse == false) && (N > (IBI/5)*3) ){   
+//      Serial.println("Enter main calc");     
       Pulse = true;                               // set the Pulse flag when there is a pulse
       digitalWrite(blinkPin,HIGH);                // turn on pin 13 LED
       IBI = sampleCounter - lastBeatTime;         // time between beats in mS
@@ -215,21 +193,21 @@ ISR(TIMER2_COMPA_vect){                       // triggered when Timer2 counts to
         secondBeat = true;                   // set the second beat flag
         sei();                               // enable interrupts again
         return;                              // IBI value is unreliable so discard it
-      }   
+      }  
       word runningTotal = 0;                  // clear the runningTotal variable    
 
       for(int i=0; i<=8; i++){                // shift data in the rate array
-        rate[i] = rate[i+1];                  // and drop the oldest IBI value 
+        rate[i] = rate[i+1];                  // and drop the oldest IBI value
         runningTotal += rate[i];              // add up the 9 oldest IBI values
       }
 
       rate[9] = IBI;                          // add the latest IBI to the rate array
       runningTotal += rate[9];                // add the latest IBI to runningTotal
-      runningTotal /= 10;                     // average the last 10 IBI values 
+      runningTotal /= 10;                     // average the last 10 IBI values
       BPM = 60000/runningTotal;               // how many beats can fit into a minute? that's BPM!
-      QS = true;                              // set Quantified Self flag 
+      QS = true;                              // set Quantified Self flag
       // QS FLAG IS NOT CLEARED INSIDE THIS ISR
-    }                       
+    }                      
   }
 
   if (Signal < thresh && Pulse == true){   // when the values are going down, the beat is over
@@ -250,6 +228,6 @@ ISR(TIMER2_COMPA_vect){                       // triggered when Timer2 counts to
     secondBeat = false;                    // when we get the heartbeat back
   }
 
-  sei();     
+  sei();    
   // enable interrupts when youre done!
 }// end isr
