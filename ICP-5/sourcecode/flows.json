@@ -1,0 +1,159 @@
+[
+    {
+        "id": "10d0edc8.cbb692",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "33e51d87.eef842",
+        "type": "twitter-credentials",
+        "z": "",
+        "screen_name": "calebcvt"
+    },
+    {
+        "id": "9c27089f.3c8f78",
+        "type": "inject",
+        "z": "10d0edc8.cbb692",
+        "name": "",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 120,
+        "y": 160,
+        "wires": [
+            [
+                "29cf444f.6b51cc"
+            ]
+        ]
+    },
+    {
+        "id": "58d38dc7.d53b74",
+        "type": "twitter out",
+        "z": "10d0edc8.cbb692",
+        "twitter": "33e51d87.eef842",
+        "name": "Tweet",
+        "x": 750,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "29cf444f.6b51cc",
+        "type": "openweathermap",
+        "z": "10d0edc8.cbb692",
+        "name": "",
+        "wtype": "current",
+        "lon": "",
+        "lat": "",
+        "city": "Kansas City",
+        "country": "United States of America",
+        "language": "en",
+        "x": 330,
+        "y": 180,
+        "wires": [
+            [
+                "8a0a81b2.40cfe",
+                "e8377997.f882e8",
+                "f57f8715.d7c608"
+            ]
+        ]
+    },
+    {
+        "id": "f57f8715.d7c608",
+        "type": "function",
+        "z": "10d0edc8.cbb692",
+        "name": "extractTweetData",
+        "func": "console.log(\"made it\");\nvar weather = msg.payload.weather;\nvar detail = msg.payload.detail;\nvar tempc = msg.payload.tempc;\nvar tempf = (tempc * 9 / 5) + 32;\nvar location = msg.payload.location;\n\nvar weather_msg = \"\"\n\nweather_msg += \"Today in \" + location + \" it is \" + tempf +\"F\" + \"\\n\";\nweather_msg += \"We're happy to see a \" + detail;\n\nmsg.topic = \"tweet/calebcvt\";\nmsg.location = \"Kansas City, MO\"\nmsg.payload = weather_msg; \nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 570,
+        "y": 160,
+        "wires": [
+            [
+                "d959600b.fa41",
+                "58d38dc7.d53b74"
+            ]
+        ]
+    },
+    {
+        "id": "d959600b.fa41",
+        "type": "debug",
+        "z": "10d0edc8.cbb692",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 790,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "8a0a81b2.40cfe",
+        "type": "debug",
+        "z": "10d0edc8.cbb692",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 500,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "1240792f.494477",
+        "type": "e-mail",
+        "z": "10d0edc8.cbb692",
+        "server": "landonvolkmann.com",
+        "port": "465",
+        "secure": true,
+        "tls": true,
+        "name": "plfoley10@gmail.com",
+        "dname": "",
+        "x": 610,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "e8377997.f882e8",
+        "type": "function",
+        "z": "10d0edc8.cbb692",
+        "name": "exctractTweetToEmail",
+        "func": "console.log(\"made it\");\nvar weather = msg.payload.weather;\nvar detail = msg.payload.detail;\nvar tempc = msg.payload.tempc;\nvar tempf = (tempc * 9 / 5) + 32;\nvar location = msg.payload.location;\n\nvar weather_msg = \"\"\n\nweather_msg += \"Today in \" + location + \" it is \" + tempf +\"F\" + \"\\n\";\nweather_msg += \"We're happy to see a \" + detail;\n\nmsg.topic = \"Your weather report\";\nmsg.payload = weather_msg; \nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 220,
+        "y": 320,
+        "wires": [
+            [
+                "c4bd3970.5fe208",
+                "1240792f.494477"
+            ]
+        ]
+    },
+    {
+        "id": "c4bd3970.5fe208",
+        "type": "debug",
+        "z": "10d0edc8.cbb692",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 360,
+        "y": 440,
+        "wires": []
+    }
+]
