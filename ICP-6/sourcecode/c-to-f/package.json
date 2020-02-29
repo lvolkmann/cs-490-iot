@@ -1,0 +1,15 @@
+{
+  "name": "celcius-to-farenheit",
+  "version": "1.0.0",
+  "description": "This is a red node node that converts celcius to farenheit",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "node-red": {
+    "nodes": {
+      "celcius-to-farenheit": "c-to-f.js"
+    }
+  },
+  "author": "Landon Volkmann",
+  "license": "ISC"
+}
