@@ -4,7 +4,6 @@ import time
 
 from Adafruit_IO import Client, Feed, RequestError
 
-
 thingspeak_api = "https://api.thingspeak.com/channels/984999/feeds.json?api_key=GRB9FYFQVCLMYHGJ&results=2"
 
 
@@ -54,22 +53,97 @@ class ThingSpeaker():
                 except:
                     pass
 
+    def return_fields_dict(self):
+        response = self.get_response()
+        data = json.loads(response)
+        feeds = data["feeds"]
+
+        my_special_dict = dict()
+
+        for feed in feeds:
+            for field_num in range(1, self.field_count + 1):
+                try:
+                    active_field = "field{}".format(field_num)
+                    field_name = self.channel_data[active_field]
+                    field_val = feed[active_field]
+
+                    my_special_dict[field_name] = field_val
+                except:
+                    pass
+
+        return my_special_dict
+
+
+class adaFruitTalker():
+
+    def __init__(self, username, api_key, feed_names: list):
+        self.aio = Client(username, api_key)
+        self.feed_names = feed_names
+        self.feeds_dict = self.inialize_feeds()
+
+    def inialize_feeds(self):
+
+        feeds_dict = dict()
+
+        for feed_name in self.feed_names:
+            feeds_dict[feed_name] = self.aio.feeds(feed_name)
+
+        return feeds_dict
+
+    def write_feeds(self, thing_speak_to_ada_dict: dict, thing_speak_values: dict):
+
+        for key, value in thing_speak_values.items():
+
+            if value is None:
+                continue
+
+            ada_feed_name = thing_speak_to_ada_dict[key]
+            ada_feed = self.feeds_dict[ada_feed_name]
+
+            self.aio.send(ada_feed.key, value)
+
 
 # speaker = ThingSpeaker(thingspeak_api, 6)
 
 # speaker.print_fields()
 
-adafruit_key = "aio_hJLW69gPHNeID6cCV9dSLdDQFMF0"
+adafruit_key = "aio_bsJm15T83XKZLCoszCVzKStCpjaG"
 adafruit_username = "aaz00966"
 
-aio = Client(adafruit_username, adafruit_key)
+# aio = Client(adafruit_username, adafruit_key)
+#
+#
+#
+# feed = 'temp'
+# # feed_obj = Feed(name=feed)
+# # temp_feed = aio.create_feed(feed_obj)
+# temp_feed = aio.feeds(feed)
+#
+#
+# aio.send_data(temp_feed.key, -5)
 
+thingspeak_to_ada_dict = {
+    "Barometer": "barometer",
+    "Heartbeat": "bpm",
+    "Dust": "dust",
+    "Humidity": "humidity",
+    "Light": "light",
+    "Temperature": "temp"
+}
 
+ada_feed_names = [
+    "barometer",
+    "bpm",
+    "dust",
+    "humidity",
+    "light",
+    "temp"
+]
 
-feed = 'test2'
-# feed_obj = Feed(name=feed)
-# temp_feed = aio.create_feed(feed_obj)
-temp_feed = aio.feeds(feed)
+speaker = ThingSpeaker(thingspeak_api, 6)
+talker = adaFruitTalker(adafruit_username, adafruit_key, ada_feed_names)
 
-
-aio.send_data(temp_feed.key, 9)
+while True:
+    print(speaker.return_fields_dict())
+    talker.write_feeds(thingspeak_to_ada_dict, speaker.return_fields_dict())
+    time.sleep(1)
