@@ -107,7 +107,7 @@ class adaFruitTalker():
 
 # speaker.print_fields()
 
-adafruit_key = "aio_bsJm15T83XKZLCoszCVzKStCpjaG"
+adafruit_key = "aio_LCLU12YLJrQJ1ROAfqIW0d2hTwWu"
 adafruit_username = "aaz00966"
 
 # aio = Client(adafruit_username, adafruit_key)
@@ -146,4 +146,4 @@ talker = adaFruitTalker(adafruit_username, adafruit_key, ada_feed_names)
 while True:
     print(speaker.return_fields_dict())
     talker.write_feeds(thingspeak_to_ada_dict, speaker.return_fields_dict())
-    time.sleep(1)
+    time.sleep(60)
