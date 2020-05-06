@@ -72,6 +72,7 @@ volatile int amp = 100;                   // used to hold amplitude of pulse wav
 volatile boolean firstBeat = true;        // used to seed rate array so we startup with reasonable BPM
 volatile boolean secondBeat = false;      // used to seed rate array so we startup with reasonable BPM
 
+
 boolean LIGHT_SENSOR_ON = true;
 char command;
 
@@ -103,16 +104,16 @@ void setup()
 
 void loop()
 {
-    while (Serial.available() > 0)
-    {
-        val = Serial.read();
-        Serial.println(val);
+    while (Serial.available() > 0){
+      command = Serial.read();
+      }
+    if(command == "1"){
+      LIGHT_SENSOR_ON = !LIGHT_SENSOR_ON
+    }
+    if(LIGHT_SENSOR_ON){
+      light_loop();
     }
     temp_hum_loop();
-    if (LIGHT_SENSOR_ON)
-    {
-        light_loop();
-    }
     dust_loop();
     barometer_loop();
     update_all();
@@ -219,5 +220,6 @@ void dust_loop()
         starttime = millis();
     }
 }
+
 
 } // end isr
